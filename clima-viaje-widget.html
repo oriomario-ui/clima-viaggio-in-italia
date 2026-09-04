@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clima - Viaggio in Italia 2026</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: #f5f5f5;
+      padding: 1.5rem;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      font-size: 20px;
+      margin-bottom: 1.5rem;
+      color: #222;
+    }
+    
+    .city-selector {
+      margin-bottom: 1.5rem;
+    }
+    
+    label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+    }
+    
+    select:hover {
+      border-color: #bbb;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #378ADD;
+      box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.1);
+    }
+    
+    #loading {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #999;
+      font-size: 14px;
+    }
+    
+    #weatherContent {
+      display: none;
+    }
+    
+    .city-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .city-header h2 {
+      font-size: 18px;
+      font-weight: 500;
+      color: #222;
+      margin: 0;
+    }
+    
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+    
+    .weather-card {
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    
+    .weather-card-label {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 6px;
+    }
+    
+    .weather-card-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 4px;
+    }
+    
+    .weather-card-detail {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .forecast {
+      display: grid;
+      gap: 10px;
+    }
+    
+    .forecast-day {
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+    
+    .forecast-date {
+      font-weight: 500;
+      color: #333;
+      min-width: 70px;
+    }
+    
+    .forecast-temp {
+      color: #666;
+    }
+    
+    .forecast-rain {
+      text-align: right;
+      color: #666;
+    }
+    
+    #error {
+      background: #fce6e6;
+      color: #c92a2a;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #f5a3a3;
+      font-size: 13px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Clima por ciudad</h1>
+    
+    <div class="city-selector">
+      <label for="citySelect">Selecciona ciudad</label>
+      <select id="citySelect">
+        <option value="istanbul">Estambul, Turquía</option>
+        <option value="naples">Nápoles, Italia</option>
+        <option value="amalfi">Amalfi, Italia</option>
+        <option value="roma">Roma, Italia</option>
+        <option value="florencia">Florencia (Toscana), Italia</option>
+        <option value="modena">Módena, Italia</option>
+        <option value="venecia">Venecia, Italia</option>
+      </select>
+    </div>
+
+    <div id="loading" style="text-align: center; padding: 2rem; color: #999;">
+      <div style="font-size: 14px;">Cargando pronóstico...</div>
+    </div>
+
+    <div id="weatherContent">
+      <div class="city-header">
+        <span>📍</span>
+        <h2 id="cityName"></h2>
+      </div>
+      
+      <div class="weather-grid" id="weatherInfo"></div>
+      <div class="forecast" id="forecastContainer"></div>
+    </div>
+
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const cities = {
+      istanbul: { name: 'Estambul, Turquía', lat: 41.0082, lon: 28.9784 },
+      naples: { name: 'Nápoles, Italia', lat: 40.8517, lon: 14.2681 },
+      amalfi: { name: 'Amalfi, Italia', lat: 40.6332, lon: 14.6029 },
+      roma: { name: 'Roma, Italia', lat: 41.9028, lon: 12.4964 },
+      florencia: { name: 'Florencia, Italia', lat: 43.7696, lon: 11.2558 },
+      modena: { name: 'Módena, Italia', lat: 44.6471, lon: 10.9252 },
+      venecia: { name: 'Venecia, Italia', lat: 45.4408, lon: 12.3155 }
+    };
+
+    async function fetchWeather(cityKey) {
+      const city = cities[cityKey];
+      const loading = document.getElementById('loading');
+      const content = document.getElementById('weatherContent');
+      const errorDiv = document.getElementById('error');
+      
+      loading.style.display = 'block';
+      content.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=7`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Error en la solicitud');
+        
+        const data = await response.json();
+
+        document.getElementById('cityName').textContent = city.name;
+
+        const current = data.current;
+        const daily = data.daily;
+
+        const weatherInfo = document.getElementById('weatherInfo');
+        weatherInfo.innerHTML = `
+          <div class="weather-card">
+            <div class="weather-card-label">Ahora</div>
+            <div class="weather-card-value">${Math.round(current.temperature_2m)}°C</div>
+            <div class="weather-card-detail">Viento: ${Math.round(current.wind_speed_10m)} km/h</div>
+          </div>
+          <div class="weather-card">
+            <div class="weather-card-label">Hoy</div>
+            <div class="weather-card-value">${Math.round(daily.temperature_2m_max[0])}° / ${Math.round(daily.temperature_2m_min[0])}°</div>
+            <div class="weather-card-detail">Lluvia: ${(daily.precipitation_sum[0] || 0).toFixed(1)} mm</div>
+          </div>
+        `;
+
+        const forecastContainer = document.getElementById('forecastContainer');
+        forecastContainer.innerHTML = '';
+
+        for (let i = 1; i < Math.min(6, daily.time.length); i++) {
+          const date = new Date(daily.time[i]).toLocaleDateString('es-CL', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric' 
+          });
+          
+          const card = document.createElement('div');
+          card.className = 'forecast-day';
+          card.innerHTML = `
+            <div class="forecast-date">${date}</div>
+            <div class="forecast-temp">${Math.round(daily.temperature_2m_max[i])}° / ${Math.round(daily.temperatura_2m_min[i])}°</div>
+            <div class="forecast-rain">💧 ${(daily.precipitation_sum[i] || 0).toFixed(1)} mm</div>
+          `;
+          forecastContainer.appendChild(card);
+        }
+
+        loading.style.display = 'none';
+        content.style.display = 'block';
+      } catch (err) {
+        loading.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'No se pudo cargar el pronóstico. Intenta de nuevo.';
+      }
+    }
+
+    document.getElementById('citySelect').addEventListener('change', (e) => {
+      fetchWeather(e.target.value);
+    });
+
+    fetchWeather('istanbul');
+  </script>
+</body>
+</html>
