@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor de moneda — Viaggio in Italia</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f7f6f3;
+    color: #37352f;
+    display: flex;
+    justify-content: center;
+    padding: 14px;
+  }
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: #ffffff;
+    border: 1px solid #e9e8e4;
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #787672;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .rate-line {
+    font-size: 13px;
+    color: #9b9a97;
+    margin-bottom: 14px;
+  }
+  .rate-line.error { color: #eb5757; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .row label {
+    width: 56px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #37352f;
+  }
+  input[type="text"] {
+    flex: 1;
+    font-size: 20px;
+    padding: 10px 12px;
+    border: 1px solid #e0dfdb;
+    border-radius: 8px;
+    outline: none;
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="text"]:focus { border-color: #2e7d32; }
+  .swap {
+    text-align: center;
+    color: #9b9a97;
+    font-size: 12px;
+    margin: 2px 0 10px;
+  }
+  .day-counter {
+    text-align: center;
+    padding: 10px 0 4px;
+  }
+  .day-counter .big {
+    font-size: 34px;
+    font-weight: 700;
+    color: #2e7d32;
+    line-height: 1.1;
+  }
+  .day-counter .small {
+    font-size: 13px;
+    color: #9b9a97;
+    margin-top: 4px;
+  }
+  .stale {
+    font-size: 11px;
+    color: #c9871a;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <!-- content injected by JS -->
+  </div>
+
+<script>
+(function () {
+  const card = document.getElementById('card');
+
+  // --- Trip dates (local device time is used as proxy for "today") ---
+  const TRIP_START = new Date(2026, 8, 16); // 16-sep-2026
+  const TRIP_END   = new Date(2026, 9, 5);  // 5-oct-2026
+  const TRY_WINDOW_START = new Date(2026, 8, 18); // 18-sep
+  const TRY_WINDOW_END   = new Date(2026, 8, 20); // 20-sep (incluido)
+
+  function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  const today = startOfDay(new Date());
+
+  const showCurrency = today >= startOfDay(TRY_WINDOW_START) && today <= startOfDay(TRY_WINDOW_END);
+
+  if (showCurrency) {
+    renderCurrencyConverter();
+  } else {
+    renderDayCounter();
+  }
+
+  function renderDayCounter() {
+    const oneDay = 24 * 60 * 60 * 1000;
+    const s = startOfDay(TRIP_START), e = startOfDay(TRIP_END);
+    let html;
+    if (today < s) {
+      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
+        <div class="day-counter">
+          <div class="small">El viaje aún no empieza</div>
+        </div>`;
+    } else if (today > e) {
+      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
+        <div class="day-counter">
+          <div class="small">¡Viaje terminado! 🎉</div>
+        </div>`;
+    } else {
+      const dayNum = Math.round((today - s) / oneDay) + 1;
+      const totalDays = Math.round((e - s) / oneDay) + 1;
+      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
+        <div class="day-counter">
+          <div class="big">Día ${dayNum} / ${totalDays}</div>
+          <div class="small">del viaje</div>
+        </div>`;
+    }
+    card.innerHTML = html;
+  }
+
+  function renderCurrencyConverter() {
+    card.innerHTML = `
+      <div class="title">💱 Conversor — Estambul</div>
+      <div class="rate-line" id="rateLine">Cargando tipo de cambio…</div>
+      <div class="row">
+        <label for="try">TRY</label>
+        <input type="text" id="try" inputmode="decimal" value="100">
+      </div>
+      <div class="swap">≈</div>
+      <div class="row">
+        <label for="clp">CLP</label>
+        <input type="text" id="clp" inputmode="decimal" value="">
+      </div>
+      <div id="staleNote"></div>
+    `;
+
+    const tryInput = document.getElementById('try');
+    const clpInput = document.getElementById('clp');
+    const rateLine = document.getElementById('rateLine');
+    const staleNote = document.getElementById('staleNote');
+
+    let rate = null; // 1 TRY en CLP
+
+    function fmt(n) {
+      return n.toLocaleString('es-CL', { maximumFractionDigits: 2 });
+    }
+
+    function fromTry() {
+      const v = parseFloat(tryInput.value.replace(',', '.'));
+      if (!isNaN(v) && rate) clpInput.value = fmt(v * rate);
+    }
+    function fromClp() {
+      const v = parseFloat(clpInput.value.replace(',', '.'));
+      if (!isNaN(v) && rate) tryInput.value = fmt(v / rate);
+    }
+
+    tryInput.addEventListener('input', fromTry);
+    clpInput.addEventListener('input', fromClp);
+
+    function applyRate(r, fromCache) {
+      rate = r;
+      rateLine.textContent = `1 TRY ≈ ${fmt(r)} CLP`;
+      if (fromCache) {
+        staleNote.innerHTML = `<div class="stale">⚠️ Sin conexión — usando el último tipo de cambio guardado</div>`;
+      }
+      fromTry();
+    }
+
+    fetch('https://open.er-api.com/v6/latest/TRY')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.result === 'success' && data.rates && data.rates.CLP) {
+          const r = data.rates.CLP;
+          applyRate(r, false);
+          localStorage.setItem('try_clp_rate', JSON.stringify({ rate: r, ts: Date.now() }));
+        } else {
+          throw new Error('respuesta inesperada');
+        }
+      })
+      .catch(() => {
+        const cached = localStorage.getItem('try_clp_rate');
+        if (cached) {
+          const { rate: r } = JSON.parse(cached);
+          applyRate(r, true);
+        } else {
+          rateLine.textContent = 'No se pudo obtener el tipo de cambio.';
+          rateLine.classList.add('error');
+        }
+      });
+  }
+})();
+</script>
+</body>
+</html>
