@@ -98,48 +98,9 @@
 (function () {
   const card = document.getElementById('card');
 
-  // --- Trip dates (local device time is used as proxy for "today") ---
-  const TRIP_START = new Date(2026, 8, 16); // 16-sep-2026
-  const TRIP_END   = new Date(2026, 9, 5);  // 5-oct-2026
-  const TRY_WINDOW_START = new Date(2026, 8, 18); // 18-sep
-  const TRY_WINDOW_END   = new Date(2026, 8, 20); // 20-sep (incluido)
-
-  function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
-  const today = startOfDay(new Date());
-
-  const showCurrency = today >= startOfDay(TRY_WINDOW_START) && today <= startOfDay(TRY_WINDOW_END);
-
-  if (showCurrency) {
-    renderCurrencyConverter();
-  } else {
-    renderDayCounter();
-  }
-
-  function renderDayCounter() {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const s = startOfDay(TRIP_START), e = startOfDay(TRIP_END);
-    let html;
-    if (today < s) {
-      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
-        <div class="day-counter">
-          <div class="small">El viaje aún no empieza</div>
-        </div>`;
-    } else if (today > e) {
-      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
-        <div class="day-counter">
-          <div class="small">¡Viaje terminado! 🎉</div>
-        </div>`;
-    } else {
-      const dayNum = Math.round((today - s) / oneDay) + 1;
-      const totalDays = Math.round((e - s) / oneDay) + 1;
-      html = `<div class="title">🇮🇹 Viaggio in Italia</div>
-        <div class="day-counter">
-          <div class="big">Día ${dayNum} / ${totalDays}</div>
-          <div class="small">del viaje</div>
-        </div>`;
-    }
-    card.innerHTML = html;
-  }
+  // Widget de inserción manual: siempre muestra el conversor.
+  // Mario lo agrega a la página con /embed solo mientras lo necesita (días en Estambul) y lo saca después.
+  renderCurrencyConverter();
 
   function renderCurrencyConverter() {
     card.innerHTML = `
